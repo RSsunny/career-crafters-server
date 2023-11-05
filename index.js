@@ -16,6 +16,23 @@ app.use(cors({
 }))
 app.use(express.json())
 
+// custom Midddleware
+
+const verifyToken=async(req,res,next)=>{
+    const token=req.cookies.token
+    if(!token){
+        return res.status(401).send({message:'unAuthorized'})
+    }
+    jwt.verify(token,process.env.ACCESS_SECRETS_TOKEN,(err,decoded)=>{
+        if(err){
+            return res.status(401).send({message:'unAuthorized'})
+        }
+
+        req.user=decoded
+        next()
+    })
+}
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.l4lgqi1.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -37,8 +54,8 @@ const client = new MongoClient(uri, {
 
       app.post('/jwt',async(req,res)=>{
         try{
-            const data=req?.body
-        const token=jwt.sign(data,process.env.ACCESS_SECRETS_TOKEN,{expiresIn:'1h'})
+        const data=req?.body
+        const token=jwt.sign(data,process.env.ACCESS_SECRETS_TOKEN,{expiresIn:'10s'})
         res.cookie('token',token,{
             httpOnly:true,
             secure:false
@@ -49,6 +66,15 @@ const client = new MongoClient(uri, {
             console.log(err);
         }
       })
+
+
+      app.post('/userlogout',async(req,res)=>{
+        const data=req.body
+        res.clearCookie('token',{maxAge:0}).send({success:true})
+      })
+
+
+
       await client.db("admin").command({ ping: 1 });
       console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
