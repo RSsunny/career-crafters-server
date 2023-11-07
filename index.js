@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt=require('jsonwebtoken')
 const cookiparser=require('cookie-parser')
 require('dotenv').config()
@@ -11,7 +11,8 @@ const port=process.env.PORT||5000
 app.use(cookiparser())
 app.use(cors({
     origin:['http://localhost:5173'],
-    credentials:true
+    credentials:true,
+    optionSuccessStatus:200,
 
 }))
 app.use(express.json())
@@ -50,15 +51,119 @@ const client = new MongoClient(uri, {
     //   await client.connect();
       // Send a ping to confirm a successful connection
 
+      const jobCollection = client.db("jobtDB").collection("job");
+      const bidsCollection = client.db("jobtDB").collection("bids");
+
+
+      app.get('/api/v1/jobs',async(req,res)=>{
+
+        try{
+          const result=await jobCollection.find().toArray()
+        res.send(result)
+        }
+        catch(err){
+          res.send({message:"data Not Found"})
+        }
+      })
+
+      app.get('/api/v1/jobs/:id',async(req,res)=>{
+        try{
+          const id=req.params.id
+          const query={_id: new ObjectId(id)}
+          const result=await jobCollection.findOne(query)
+          res.send(result)
+
+
+        }
+        catch(err){
+          res.send({message:"data Not Found"})
+        }
+      })
+      
+
+      app.post('/api/v1/jobs',verifyToken,verifyToken,async(req,res)=>{
+        try{
+          const job=req.body
+        const result=await jobCollection.insertOne(job)
+        res.send(result)
+        }
+        catch(err){
+          res.send({message:"data Not Found"})
+        }
+      })
+
+
+      app.get('/api/v1/bids',async(req,res)=>{
+        try{
+          let queryobj={}
+          const youremail=req.query.youremail
+          const owneremail=req.query.owneremail
+       
+        
+        if(youremail){
+          queryobj.youremail=youremail
+        }
+        if(owneremail){
+          queryobj.owneremail=owneremail
+        }
+        console.log(queryobj);
+        const result=await bidsCollection.find(queryobj).toArray()
+        res.send(result)
+        }
+        catch(err){
+          res.send([])
+        }
+      })
+
+      app.post('/api/v1/bids',async(req,res)=>{
+       try{
+        const bids=req.body
+        const result=await bidsCollection.insertOne(bids)
+        res.send(result)
+       }
+       catch(err){
+        res.send({message:"data Not Found"})
+      }
+      })
+
+      app.patch('/api/v1/bids/:id',async(req,res)=>{
+       try{
+        const id=req.params.id
+        
+        const query={_id: new ObjectId(id)}
+        
+        const options = { upsert: true };
+        const update=req.body
+
+        console.log("hfdh",update);
+        const updateDoc = {
+          $set: update
+        };
+        const result=await bidsCollection.updateOne(query,updateDoc,options)
+        res.send(result)
+       }
+       catch(err){
+        res.send([])
+      }
+      })
+      
+
+      
+      
+
+
+
 
 
       app.post('/jwt',async(req,res)=>{
         try{
         const data=req?.body
-        const token=jwt.sign(data,process.env.ACCESS_SECRETS_TOKEN,{expiresIn:'10s'})
+        
+        const token=jwt.sign(data,process.env.ACCESS_SECRETS_TOKEN,{expiresIn:'1h'})
         res.cookie('token',token,{
             httpOnly:true,
-            secure:false
+            secure:false,
+            
         }).send({message:'success'})
         
         }
